@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import aiRoutes from './routes/ai.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -26,12 +27,30 @@ app.use(helmet());
 
 
 // CORS configuration
+// CORS configuration - Update this
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173', 
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Add explicit JSON error handling
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err);
+  
+  // Always return JSON
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -60,11 +79,27 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Simple redirect to health endpoint
+app.get('/', (req, res) => {
+  res.redirect('/api/health');
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/ai', aiRoutes);
+
+// Add this before your error handling middleware
+app.use('*', (req, res, next) => {
+  // If we get here, no route was matched
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+    error: 'Not Found'
+  });
+});
 
 // Error handling middleware
 app.use(notFound);

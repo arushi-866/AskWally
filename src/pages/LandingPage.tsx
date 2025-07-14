@@ -8,6 +8,9 @@ import { FloatingBubbles } from '../components/FloatingBubbles';
 import { parseQuery } from '../utils/queryParser';
 import { motion, AnimatePresence } from 'framer-motion';
 import WalmartSpark from '../assets/walmart-spark.png';
+import { LocalProductSearch } from '../services/localProductSearch';
+import { ProductProcessor } from '../services/productProcessor';
+import { rawWalmartProducts } from '../data/mockProducts';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,21 +45,46 @@ export const LandingPage: React.FC = () => {
     
     setIsSearching(true);
     
-    // Enhanced AI processing simulation with visual feedback
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const parsedQuery = parseQuery(query);
-    
-    // Navigate to products page with search results
-    navigate('/products', { 
-      state: { 
-        query, 
-        parsedQuery,
-        searchPerformed: true 
-      } 
-    });
-    
-    setIsSearching(false);
+    try {
+      // Initialize the product search service (same as Wally Assistant)
+      const processedProducts = ProductProcessor.processProducts(rawWalmartProducts);
+      const productSearch = new LocalProductSearch(processedProducts);
+      
+      // Search for products using the same logic as Wally Assistant
+      const searchResults = productSearch.searchProducts(query);
+      const aiResponse = productSearch.generateAIResponse(query, searchResults);
+      
+      // Enhanced AI processing simulation with visual feedback
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const parsedQuery = parseQuery(query);
+      
+      // Navigate to products page with search results
+      navigate('/products', { 
+        state: { 
+          query, 
+          parsedQuery,
+          searchPerformed: true,
+          searchResults: searchResults.slice(0, 50), // Limit to 50 results for display
+          aiResponse: aiResponse,
+          totalResults: searchResults.length
+        } 
+      });
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      // Fallback to original search method
+      const parsedQuery = parseQuery(query);
+      navigate('/products', { 
+        state: { 
+          query, 
+          parsedQuery,
+          searchPerformed: true 
+        } 
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleVisualSearchClick = () => {

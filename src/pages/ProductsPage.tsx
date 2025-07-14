@@ -5,12 +5,12 @@ import { ProductGrid } from '../components/ProductGrid';
 import { ProductFilters } from '../components/ProductFilters';
 import { SearchSummary } from '../components/SearchSummary';
 import { getFilteredProducts, stores } from '../data/mockProducts';
-import type { Product } from '../data/mockProducts';
 import type { ParsedQuery } from '../utils/queryParser';
+import type { Product } from '../types/Product';
 
 export const ProductsPage: React.FC = () => {
   const location = useLocation();
-  const { query, parsedQuery, searchPerformed, visualSearch } = location.state || {};
+  const { query, parsedQuery, searchPerformed, visualSearch, searchResults, aiResponse, totalResults } = location.state || {};
   
   const [products, setProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'rating' | 'name' | 'featured'>('rating');
@@ -19,6 +19,7 @@ export const ProductsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
+
     if (visualSearch && parsedQuery) {
       // Handle visual search - show kids dresses
       let allDresses = getFilteredProducts(undefined, {}).filter(
@@ -45,25 +46,19 @@ export const ProductsPage: React.FC = () => {
         results = [...pinkDresses, ...allDresses.filter(p => !pinkDresses.includes(p))].slice(0, 9);
       }
       setProducts(results);
-    } else if (parsedQuery) {
-      const filtered = getFilteredProducts(parsedQuery.category, {
-        ...parsedQuery.filters,
-        store_id: selectedStore || undefined
-      });
-      setProducts(filtered);
+
     } else {
-      const filtered = getFilteredProducts(undefined, {
-        store_id: selectedStore || undefined
-      });
+      const filtered = getFilteredProducts(undefined, {});
       setProducts(filtered);
     }
-  }, [parsedQuery, selectedStore, visualSearch]);
+
+  }, [parsedQuery, selectedStore, searchResults]);
+
 
   const handleFilterChange = (newFilters: ParsedQuery['filters']) => {
     setCurrentFilters(newFilters);
     const filtered = getFilteredProducts(parsedQuery?.category, {
-      ...newFilters,
-      store_id: selectedStore || undefined
+      ...newFilters
     });
     setProducts(filtered);
   };
@@ -74,21 +69,26 @@ export const ProductsPage: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Filter products based on search query
-    const filtered = getFilteredProducts(parsedQuery?.category, {
-      ...currentFilters,
-      store_id: selectedStore || undefined
-    });
     
     if (searchQuery.trim()) {
-      const searchResults = filtered.filter(product =>
+      // Search within the current products (either from search results or filtered products)
+      const searchResults = products.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.brand.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setProducts(searchResults);
     } else {
-      setProducts(filtered);
+      // Reset to original products based on parsed query or all products
+      if (parsedQuery) {
+        const filtered = getFilteredProducts(parsedQuery.category, {
+          ...currentFilters
+        });
+        setProducts(filtered);
+      } else {
+        const filtered = getFilteredProducts(undefined, {});
+        setProducts(filtered);
+      }
     }
   };
 
@@ -139,6 +139,8 @@ export const ProductsPage: React.FC = () => {
             query={query} 
             resultCount={products.length}
             parsedQuery={parsedQuery}
+            aiResponse={aiResponse}
+            totalResults={totalResults}
           />
         )}
 
@@ -222,9 +224,9 @@ export const ProductsPage: React.FC = () => {
                       {currentFilters.brand}
                     </span>
                   )}
-                  {currentFilters.is_featured && (
-                    <span className="bg-walmart-yellow/20 text-walmart-yellow-dark px-2 py-1 rounded-full">
-                      Featured
+                  {currentFilters.brand && (
+                    <span className="bg-gray-100 px-2 py-1 rounded-full">
+                      {currentFilters.brand}
                     </span>
                   )}
                 </div>

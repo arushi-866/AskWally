@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import type { Product } from '../data/mockProducts';
-
+// import type { Product } from '../data/mockProducts';
+import type { Product } from '../types/Product';
 export interface CartItem extends Product {
   quantity: number;
   selectedSize?: string;
